@@ -40,8 +40,7 @@ class Classifier:
         precision_sum = 0
         f1_sum = 0
         roc_auc_sum = 0
-        fold_index = 1
-        for (train_index, test_index), color in zip(self.cv.split(self.X, self.y), self.colors):
+        for fold_index, ((train_index, test_index), color) in enumerate(zip(self.cv.split(self.X, self.y), self.colors), start=1):
             X_train, X_test = self.X[train_index], self.X[test_index]
             y_train, y_test = self.y[train_index], self.y[test_index]
             self.train(X_train, y_train)
@@ -72,8 +71,6 @@ class Classifier:
                 logging.info("AUC: %.2f", roc_auc)
                 plt.plot(fpr, tpr, lw=self.line_width, color=color,
                          label='ROC fold %d (area = %.2f)' % (fold_index, roc_auc))
-
-            fold_index += 1
 
         logging.info("Avg. accuracy: %.2f", accuracy_sum / self.folds_num)
         logging.info("Avg. recall: %.2f", recall_sum / self.folds_num)

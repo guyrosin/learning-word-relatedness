@@ -83,18 +83,16 @@ def read_binary_relations_to_features(relations_file_name, year_to_model=None, g
     feature_vectors = []
     with open(relations_file_name, encoding='utf8') as relations_file:
         rel_reader = csv.reader(relations_file)
+        # each relation contains a list of entities, year, and relation name
+        year_index = -3
         for rel in rel_reader:
-            # each relation contains a list of entities, year, and relation name
-            year_index = -3
             rel_year = int(rel[year_index])
             entities = rel[:year_index]
             if year_to_model and rel_year not in year_to_model:
                 continue
             if (min_year and rel_year < min_year) or (max_year and rel_year > max_year):
                 continue
-            rel_type = None
-            if include_rel_type:
-                rel_type = rel[-2]
+            rel_type = rel[-2] if include_rel_type else None
             # parse the result: YES -> 1, o.w. 0
             result = int(rel[-1] == 'True')
             feature_vector = create_feature_vector(entities, rel_year, include_rel_type,
@@ -168,7 +166,7 @@ def create_feature_vector(entities, year, include_rel_type=None, rel_type=None,
             exit()
 
     # take the embeddings from the global/specific model
-    model = global_model if global_model else year_to_model.get(year)
+    model = global_model or year_to_model.get(year)
     if not model or not model.contains_all_words(entities):
         return None
     # construct the feature vector
@@ -180,12 +178,14 @@ def create_feature_vector(entities, year, include_rel_type=None, rel_type=None,
         vector = np.append(vector, rel_type)
 
     if include_peak_detection:
-        hist = {}
-        for y, w2v_model in year_to_model.items():
-            if w2v_model.contains_all_words(entities):
-                hist[y] = calc_mutual_similarity(entities, w2v_model)
+        hist = {
+            y: calc_mutual_similarity(entities, w2v_model)
+            for y, w2v_model in year_to_model.items()
+            if w2v_model.contains_all_words(entities)
+        }
+
         model_identifies_as_peak = False
-        if year in hist.keys():
+        if year in hist:
             peak_years = peak_detection.find_peaks(hist)
             # Count this relation as correct if all of the real years were identified as peaks
             if year in peak_years:
@@ -199,11 +199,8 @@ def create_feature_vector(entities, year, include_rel_type=None, rel_type=None,
 
 
 def calc_mutual_similarity(entities, w2v_model):
-    similarity = 0
     pairs = list(itertools.combinations(entities, 2))
-    for pair in pairs:
-        similarity += w2v_model.model.similarity(pair[0], pair[1])
-    return similarity
+    return sum(w2v_model.model.similarity(pair[0], pair[1]) for pair in pairs)
 
 
 def filter_relations_with_binary_relations(relations, binary_relations):
@@ -225,22 +222,23 @@ def find_peaks(entity1, entity2, year_to_model):
     :param year_to_model: a mapping between each year and its word2vec model
     :return: a list of peak years
     """
-    hist = {}
-    for year, w2v_model in year_to_model.items():
-        if year < GLOBAL_YEAR and w2v_model.contains_all_words([entity1, entity2]):
-            hist[year] = w2v_model.model.similarity(entity1, entity2)
-    peak_years = peak_detection.find_peaks(hist)
-    return peak_years
+    hist = {
+        year: w2v_model.model.similarity(entity1, entity2)
+        for year, w2v_model in year_to_model.items()
+        if year < GLOBAL_YEAR
+        and w2v_model.contains_all_words([entity1, entity2])
+    }
+
+    return peak_detection.find_peaks(hist)
 
 
 def find_longest_sequence(list_of_years):
     sequences = []
     current_seq = []
     for year in list_of_years:
-        if current_seq:
-            if year > current_seq[-1] + 1:  # save the current sequence
-                sequences.append(current_seq)
-                current_seq = []
+        if current_seq and year > current_seq[-1] + 1:
+            sequences.append(current_seq)
+            current_seq = []
         current_seq.append(year)
     # save the last sequence
     if current_seq:
@@ -248,17 +246,13 @@ def find_longest_sequence(list_of_years):
     # return the longest one
     if not sequences:
         return []
-    longest_seq = max(sequences, key=len)
-    return longest_seq
+    return max(sequences, key=len)
 
 
 def is_contained(seq1, seq2):
     """Returns true iff the first sequence is contained in the second sequence"""
     total = len(seq1)
-    overlapping = 0
-    for year in seq1:
-        if year in seq2:
-            overlapping += 1
+    overlapping = sum(year in seq2 for year in seq1)
     return overlapping / total > 0.9
 
 

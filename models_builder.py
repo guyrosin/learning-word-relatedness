@@ -21,8 +21,8 @@ class ModelsBuilder(object):
         """
         self.data_dir_name = data_dir_name
         self.year_to_model = {}
-        self.from_year = from_year if from_year else 0
-        self.to_year = to_year if to_year else utils.GLOBAL_YEAR
+        self.from_year = from_year or 0
+        self.to_year = to_year or utils.GLOBAL_YEAR
         self.global_model_dir = global_model_dir
         self.sg = sg
         self.window = window

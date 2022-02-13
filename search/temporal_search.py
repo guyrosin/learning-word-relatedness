@@ -103,8 +103,9 @@ class TemporalSearch:
             time_start = args[1]
             time_end = args[2]
             middle_year = utils.get_middle_year(time_start, time_end)
-            related_tuples = self.qe_single_entity.expand_entity(query, middle_year)
-            if related_tuples:
+            if related_tuples := self.qe_single_entity.expand_entity(
+                query, middle_year
+            ):
                 expanded_query = '{} {}'.format(query, ' '.join([tup[0] for tup in related_tuples]))
         elif self.query_type == QueryType.MultipleEntities:
             entities = args[0]
@@ -125,23 +126,18 @@ class TemporalSearch:
             return None
         expanded_query = expanded_query.replace('_nnp', '').replace('_', ' ')  # prepare to search
 
-        result = self.search_eval(expanded_query, time_start, time_end)
-        if result:
-            true_articles_count = result[0]
-            total_articles_count = result[1]
-        else:
+        if not (result := self.search_eval(expanded_query, time_start, time_end)):
             return None
 
+        true_articles_count = result[0]
+        total_articles_count = result[1]
         if self.eval_method == EvaluationMethod.Absolute:
             pass
         elif self.eval_method == EvaluationMethod.RelativeToNoQE:
-            # search without QE
-            result = self.search_eval(query, time_start, time_end)
-            if result:
-                baseline_true_articles_count = result[0]
-                baseline_total_articles_count = result[1]
-            else:
+            if not (result := self.search_eval(query, time_start, time_end)):
                 return None
+            baseline_true_articles_count = result[0]
+            baseline_total_articles_count = result[1]
             # true count will be the difference between the QE method and the baseline
             true_articles_count -= baseline_true_articles_count
             total_articles_count = max(total_articles_count, baseline_total_articles_count)
@@ -168,7 +164,12 @@ class TemporalSearch:
             logging.exception('Failed searching for "%s"', query)
             return None
         if not results:
-            logging.warning(msg + ', no results' if msg else 'searching for "{}", '.format(query))
+            logging.warning(
+                f'{msg}, no results'
+                if msg
+                else 'searching for "{}", '.format(query)
+            )
+
             return None
         true_articles_count = 0
         total_articles_count = 0

@@ -21,7 +21,6 @@ class QESingleEntity:
         self.global_model = global_model
         self.year_to_model = year_to_model
         self.svm_model = svm_model
-        pass
 
     def expand_entity(self, entity, time=None, qe_method=None, topk=None):
         """
@@ -56,17 +55,18 @@ class QESingleEntity:
         """
         w2v_model = None
         if time == utils.GLOBAL_YEAR:
-            w2v_model = self.global_model if self.global_model else self.year_to_model[time]
+            w2v_model = self.global_model or self.year_to_model[time]
         elif self.year_to_model and time in self.year_to_model:
             w2v_model = self.year_to_model[time]
         if not w2v_model:
             return None
         if topk is None:
             topk = self.k
-        related_tuples = None
-        if entity in w2v_model.model:
-            related_tuples = w2v_model.model.similar_by_word(entity, topn=topk + 1)
-        return related_tuples
+        return (
+            w2v_model.model.similar_by_word(entity, topn=topk + 1)
+            if entity in w2v_model.model
+            else None
+        )
 
     def expand_entity_word2vec_with_peak(self, entity, time, topk=None):
         """
@@ -116,8 +116,7 @@ class QESingleEntity:
                 if score < min_true_confidence:
                     continue
                 heap.add(score, related_term)
-            for obj in heap.heap:
-                expansions.append(obj[1])
+            expansions.extend(obj[1] for obj in heap.heap)
         return expansions
 
     def expand_entity_svm_peak(self, entity, time, topk=None):
@@ -142,6 +141,5 @@ class QESingleEntity:
                 if score < min_true_confidence:
                     continue
                 heap.add(score, term)
-            for obj in heap.heap:
-                expansions.append(obj)
+            expansions.extend(iter(heap.heap))
         return expansions

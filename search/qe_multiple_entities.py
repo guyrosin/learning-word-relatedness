@@ -73,9 +73,9 @@ class QEMultipleEntities:
     def expand_baseline(self, entities):
         candidates = []
         for entity in entities:
-            new_tuples = self.qe_single_entity.expand_entity(entity,
-                                                             qe_method=qe_single_entity.QEMethod.global_word2vec)
-            if new_tuples:
+            if new_tuples := self.qe_single_entity.expand_entity(
+                entity, qe_method=qe_single_entity.QEMethod.global_word2vec
+            ):
                 candidates += [tup[0] for tup in new_tuples]
         w2v_model = self.global_model
         expansions = self.filter_candidates_by_mutual_sim(candidates, entities, w2v_model)
@@ -101,8 +101,9 @@ class QEMultipleEntities:
         logging.warning('{} @ {}'.format(' , '.join(entities), year))
         candidates = []
         for entity in entities:
-            new_tuples = self.qe_single_entity.expand_entity(entity, year, topk=100)
-            if new_tuples:
+            if new_tuples := self.qe_single_entity.expand_entity(
+                entity, year, topk=100
+            ):
                 candidates += [tup[0] for tup in new_tuples]
         w2v_model = self.year_to_model[year]
         expansions = self.filter_candidates_by_mutual_sim(candidates, entities, w2v_model)
@@ -147,8 +148,7 @@ class QEMultipleEntities:
                 return None
             middle_year = utils.get_middle_year(longest_sequence[0], longest_sequence[-1])
             best_years.append(middle_year)
-        avg_best_year = round(np.array(best_years).mean())
-        return avg_best_year
+        return round(np.array(best_years).mean())
 
     def expand_peak_detection_new(self, entity1, entity2):
         peak_years = utils.find_peaks(entity1, entity2, self.year_to_model)
@@ -182,21 +182,18 @@ class QEMultipleEntities:
             if term in (entity1, entity2) or term in [tup[1] for tup in heap.heap]:  # if this term already exists
                 continue
             heap.add(mutual_similarity, term)
-        expansions = []
-        for obj in heap.heap:
-            expansions.append(obj[1])
+        expansions = [obj[1] for obj in heap.heap]
         return ' '.join(expansions)
 
     def filter_candidates_by_mutual_sim(self, candidates, entities, w2v_model):
         # sort the candidate list by mutual similarity, and return the top k
         heap = MaxEntitiesHeap(self.k, entities)
         for term in candidates:
-            sim = 0
-            for entity in entities:
-                if w2v_model.contains_all_words([entity]):
-                    sim += w2v_model.model.similarity(term, entity)
+            sim = sum(
+                w2v_model.model.similarity(term, entity)
+                for entity in entities
+                if w2v_model.contains_all_words([entity])
+            )
+
             heap.add(sim, term)
-        expansions = []
-        for item in heap.heap:
-            expansions.append(item[1])
-        return expansions
+        return [item[1] for item in heap.heap]

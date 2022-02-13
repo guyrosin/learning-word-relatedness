@@ -15,15 +15,14 @@ class MaxEntitiesHeap:
         # if this term already exists in the query, skip it
         if self.is_term_exists_in_entities(term):
             return
-        # if this term already exists in the heap, compare their similarities
-        existing_items = [(i, v) for i, v in enumerate(self.heap) if v[1] in term]
-        if existing_items:
+        if existing_items := [
+            (i, v) for i, v in enumerate(self.heap) if v[1] in term
+        ]:
             existing_item = existing_items[0]
-            if score is not None and score > existing_item[1][0]:  # we're better -> let's replace the existing term
-                self.heap[existing_item[0]] = existing_item[1]
-                self.heapify()  # need to re-heapify
-            else:  # the existing term is better
+            if score is None or score <= existing_item[1][0]:
                 return
+            self.heap[existing_item[0]] = existing_item[1]
+            self.heapify()  # need to re-heapify
         item = (score, term)
         if len(self.heap) >= self.capacity:
             heapq.heappushpop(self.heap, item)

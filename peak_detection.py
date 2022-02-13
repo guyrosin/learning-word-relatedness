@@ -65,5 +65,4 @@ def find_peaks(hist):
                 is_plateau = False
 
     final_peak_indices = np.sort(np.unique(final_peak_indices))
-    peak_years = hist_list[final_peak_indices][:, 0]
-    return peak_years
+    return hist_list[final_peak_indices][:, 0]
